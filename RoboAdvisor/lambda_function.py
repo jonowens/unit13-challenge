@@ -79,6 +79,53 @@ def close(session_attributes, fulfillment_state, message):
 
     return response
 
+def validate_data(age, investment_amount, intent_request):
+    '''Validates the data provided by the user'''
+    
+    # Validate age, should be greater than 0 and less than 65
+    if age is not None:
+        age = parse_int(age)
+        if age <= 0 or age >= 65:
+            return build_validation_result(
+                False,
+                'age',
+                'You should be at least 1 and less than 65. Please provide a different age.'
+            )
+
+    # Validate investment amount, should be equal to or greater than 5000
+    if investment_amount is not None:
+        investment_amount = parse_int(investment_amount)
+        if investment_amount < 5000:
+            return build_validation_result(
+                False,
+                'investmentAmount',
+                'The amount to invest should be greater than $5000.  Please provide a higher amount to invest.'
+                )
+
+    # True result is returned if age and investment amount are valid
+    return build_validation_result(True, None, None)
+
+def get_investment_recommendation(risk_level):
+    '''Retreives investment recommendation based on risk level'''
+
+    # Check if risk level is none
+    if risk_level == 'None':
+        return "100% bonds (AGG), 0% equities (SPY)"
+    # Check if risk level is very low
+    if risk_level == 'Very Low':
+        return "80% bonds (AGG), 20% equities (SPY)"
+    # Check if risk level is low
+    if risk_level == 'Low':
+        return "60% bonds (AGG), 40% equities (SPY)"
+    # Check if risk level is medium
+    if risk_level == 'Medium':
+        return "40% bonds (AGG), 60% equities (SPY)"
+    # Check if risk level is high
+    if risk_level == 'High':
+        return "20% bonds (AGG), 80% equities (SPY)"
+    # Check if risk level is very high
+    if risk_level == 'Very High':
+        return "0% bonds (AGG), 100% equities (SPY)"
 
 ### Intents Handlers ###
 def recommend_portfolio(intent_request):
@@ -98,7 +145,21 @@ def recommend_portfolio(intent_request):
         # for the first violation detected.
 
         ### YOUR DATA VALIDATION CODE STARTS HERE ###
-
+        slots = get_slots(intent_request)
+        
+        validation_result = validate_data(age, investment_amount, intent_request)
+        if not validation_result['isValid']:
+            # Reset validation slot
+            slots[validation_result["violatedSlot"]] = None
+            
+            # Returns information with new slot data
+            return elicit_slot(
+                intent_request["sessionAttributes"],
+                intent_request["currentIntent"]["name"],
+                slots,
+                validation_result["violatedSlot"],
+                validation_result["message"]
+            )
         ### YOUR DATA VALIDATION CODE ENDS HERE ###
 
         # Fetch current session attibutes
@@ -107,9 +168,8 @@ def recommend_portfolio(intent_request):
         return delegate(output_session_attributes, get_slots(intent_request))
 
     # Get the initial investment recommendation
-
     ### YOUR FINAL INVESTMENT RECOMMENDATION CODE STARTS HERE ###
-
+    initial_recommendation = get_investment_recommendation(risk_level)
     ### YOUR FINAL INVESTMENT RECOMMENDATION CODE ENDS HERE ###
 
     # Return a message with the initial recommendation based on the risk level.
